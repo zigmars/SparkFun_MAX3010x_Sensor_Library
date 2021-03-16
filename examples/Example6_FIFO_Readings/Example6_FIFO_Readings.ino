@@ -20,9 +20,10 @@
 */
 
 #include <Wire.h>
+extern TwoWire Wire1;
 #include "MAX30105.h"
 
-MAX30105 particleSensor;
+MAX30105 ps1, ps2;
 
 long startTime;
 long samplesTaken = 0; //Counter for calculating the Hz or read rate
@@ -33,12 +34,17 @@ void setup()
   Serial.println("Initializing...");
 
   // Initialize sensor
-  if (particleSensor.begin(Wire, I2C_SPEED_FAST) == false) //Use default I2C port, 400kHz speed
+  if (ps1.begin(Wire, I2C_SPEED_FAST) == false) //Use default I2C port, 400kHz speed
   {
-    Serial.println("MAX30105 was not found. Please check wiring/power. ");
+    Serial.println("1st MAX30105 on 'Wire' was not found. Please check wiring/power. ");
     while (1);
   }
 
+  if (ps2.begin(Wire1, I2C_SPEED_FAST) == false) //Use default I2C port, 400kHz speed
+  {
+    Serial.println("2nd MAX30105 on 'Wire1' was not found. Please check wiring/power. ");
+    while (1);
+  }
   //Setup to sense up to 18 inches, max LED brightness
   byte ledBrightness = 0xFF; //Options: 0=Off to 255=50mA
   byte sampleAverage = 4; //Options: 1, 2, 4, 8, 16, 32
@@ -47,32 +53,40 @@ void setup()
   int pulseWidth = 411; //Options: 69, 118, 215, 411
   int adcRange = 2048; //Options: 2048, 4096, 8192, 16384
 
-  particleSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); //Configure sensor with these settings
-//  particleSensor.setup(); //Configure sensor. Use 6.4mA for LED drive
+  ps1.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); //Configure sensor with these settings
+//  ps1.setup(); //Configure sensor. Use 6.4mA for LED drive
+  ps2.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); //Configure sensor with these settings
 
   startTime = millis();
 }
 
 void loop()
 {
-  particleSensor.check(); //Check the sensor, read up to 3 samples
+  ps1.check(); //Check the sensor, read up to 3 samples
+  ps2.check(); //Check the sensor, read up to 3 samples
 
-  while (particleSensor.available()) //do we have new data?
+  if (ps1.available()) //do we have new data?
   {
-    samplesTaken++;
-
-    Serial.print(" R[");
-    Serial.print(particleSensor.getFIFORed());
-    Serial.print("] IR[");
-    Serial.print(particleSensor.getFIFOIR());
-    Serial.print("] G[");
-    Serial.print(particleSensor.getFIFOGreen());
-    Serial.print("] Hz[");
-    Serial.print((float)samplesTaken / ((millis() - startTime) / 1000.0), 2);
-    Serial.print("]");
-
-    Serial.println();
-
-    particleSensor.nextSample(); //We're finished with this sample so move to next sample
+    Serial.print("PS1:");
+    Serial.print(ps1.getFIFORed());
+    Serial.print(',');
+    Serial.print(ps1.getFIFOIR());
+    Serial.print(',');
+    Serial.print(ps1.getFIFOGreen());
+    Serial.print(',');
+    Serial.println(millis() - startTime);
+    ps1.nextSample(); //We're finished with this sample so move to next sample
+  }
+  if (ps2.available()) //do we have new data?
+  {
+    Serial.print("PS2:");
+    Serial.print(ps2.getFIFORed());
+    Serial.print(',');
+    Serial.print(ps2.getFIFOIR());
+    Serial.print(',');
+    Serial.print(ps2.getFIFOGreen());
+    Serial.print(',');
+    Serial.println(millis() - startTime);
+    ps2.nextSample(); //We're finished with this sample so move to next sample
   }
 }
